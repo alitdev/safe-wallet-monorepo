@@ -343,3 +343,6 @@ export enum PressActionId {
 }
 
 export const LAUNCH_ACTIVITY = 'global.safe.mobileapp.ui.MainActivity'
+
+export const asymmetricKey = 'safe'
+export const keychainGenericPassword = 'safeuser'
