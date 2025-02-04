@@ -2,9 +2,7 @@ import DeviceCrypto from 'react-native-device-crypto'
 import * as Keychain from 'react-native-keychain'
 import DeviceInfo from 'react-native-device-info'
 import { Wallet } from 'ethers'
-
-export const asymmetricKey = 'safe'
-export const keychainGenericPassword = 'safeuser'
+import { asymmetricKey, keychainGenericPassword } from '@/src/store/constants'
 
 export function useSign() {
   // TODO: move it to a global context or reduce
@@ -17,7 +15,7 @@ export function useSign() {
         invalidateOnNewBiometry: true,
       })
 
-      const encryptyedPrivateKey = await DeviceCrypto.encrypt(asymmetricKey, privateKey, {
+      const encryptedPrivateKey = await DeviceCrypto.encrypt(asymmetricKey, privateKey, {
         biometryTitle: 'Authenticate',
         biometrySubTitle: 'Saving key',
         biometryDescription: 'Please authenticate yourself',
@@ -26,8 +24,8 @@ export function useSign() {
       await Keychain.setGenericPassword(
         keychainGenericPassword,
         JSON.stringify({
-          encryptyedPassword: encryptyedPrivateKey.encryptedText,
-          iv: encryptyedPrivateKey.iv,
+          encryptedPassword: encryptedPrivateKey.encryptedText,
+          iv: encryptedPrivateKey.iv,
         }),
       )
     } catch (err) {
@@ -43,8 +41,8 @@ export function useSign() {
         throw 'user password not found'
       }
 
-      const { encryptyedPassword, iv } = JSON.parse(user.password)
-      const decryptedKey = await DeviceCrypto.decrypt(asymmetricKey, encryptyedPassword, iv, {
+      const { encryptedPassword, iv } = JSON.parse(user.password)
+      const decryptedKey = await DeviceCrypto.decrypt(asymmetricKey, encryptedPassword, iv, {
         biometryTitle: 'Authenticate',
         biometrySubTitle: 'Signing',
         biometryDescription: 'Authenticate yourself to sign the text',

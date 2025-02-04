@@ -24,7 +24,7 @@ describe('useSign', () => {
     })
     expect(spy).toHaveBeenCalledWith(
       keychainGenericPassword,
-      JSON.stringify({ encryptyedPassword: 'encryptedText', iv: `${privateKey}000` }),
+      JSON.stringify({ encryptedPassword: 'encryptedText', iv: `${privateKey}000` }),
     )
   })
 
@@ -45,7 +45,7 @@ describe('useSign', () => {
 
     expect(spy).toHaveBeenCalledWith(
       'safeuser',
-      JSON.stringify({ encryptyedPassword: 'encryptedText', iv: `${privateKey}000` }),
+      JSON.stringify({ encryptedPassword: 'encryptedText', iv: `${privateKey}000` }),
     )
     expect(returnedKey).toBe(privateKey)
   })
