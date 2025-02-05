@@ -11,6 +11,7 @@ import { Address } from '@/src/types/address'
 import { useSign } from './useSign'
 import { selectActiveSafe } from '@/src/store/activeSafeSlice'
 import { useAppSelector } from '@/src/store/hooks'
+import { useSiwe } from './useSiwe'
 
 const ERROR_MSG = 'useDelegateKey: Something went wrong'
 
@@ -95,13 +96,16 @@ export function useDelegateKey() {
     chainId: string
   }) => {
     const [authVerifyV1] = useAuthVerifyV1Mutation()
+    const { signMessage } = useSiwe()
+
+    const signature = await signMessage({ signer: delegatedAccount, message: message.toString() })
 
     // Step 5 - calls /v1/auth/verify to verify the signature
     try {
       const response = await authVerifyV1({
         siweDto: {
           message: message.toString(),
-          signature: signer,
+          signature,
         },
       })
 
@@ -115,7 +119,7 @@ export function useDelegateKey() {
           safe: safeAddress,
           delegate: delegatedAccount.address,
           delegator: signer,
-          signature: signer,
+          signature,
           label: 'Delegate',
         },
       })
