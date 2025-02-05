@@ -1,76 +1,74 @@
 import { useState, useCallback } from 'react'
 import { ethers } from 'ethers'
-import DeviceCrypto from 'react-native-device-crypto'
-import * as Keychain from 'react-native-keychain'
+import { useAuthGetNonceV1Query, useAuthVerifyV1Mutation } from '@safe-global/store/gateway/AUTO_GENERATED/auth'
+import {
+  useDelegatesGetDelegatesV2Query,
+  useDelegatesPostDelegateV2Mutation,
+} from '@safe-global/store/gateway/AUTO_GENERATED/delegates'
 
-import Logger from '../utils/logger'
+import Logger from '@/src/utils/logger'
 import { Address } from '@/src/types/address'
-import GatewayService from '../services/gateway/GatewayService'
 import { useSign } from './useSign'
-import { asymmetricKey, keychainGenericPassword } from '@/src/store/constants'
+import { selectActiveSafe } from '@/src/store/activeSafeSlice'
+import { useAppSelector } from '@/src/store/hooks'
+
+const ERROR_MSG = 'useDelegateKey: Something went wrong'
 
 export function useDelegateKey() {
+  // Local states
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<Error | null>(null)
-  const { getPrivateKey, createMnemonicAccount } = useSign()
+
+  // Redux states
+  const activeSafe = useAppSelector(selectActiveSafe)
+
+  // Hook calls
+  const { getPrivateKey } = useSign()
+
+  // Step 0 - Get the nonce to be included in the message to be sent to the backend
+  const { data } = useAuthGetNonceV1Query()
 
   const createDelegate = useCallback(async (ownerAddress: Address) => {
     setLoading(true)
     setError(null)
 
     try {
-      if (!ownerAddress) {
-        throw Logger.info('OwnerKeyNotFoundForDelegate')
+      if (!ownerAddress || !activeSafe) {
+        throw Logger.info(ERROR_MSG)
       }
-
-      // Step 0: Get users private key from keychain. TODO: need to pass ownerAddress to getPrivateKey
+      // Step 1 - Get the private key of the owner/signer
       const privateKey = await getPrivateKey()
 
       if (!privateKey) {
-        throw Logger.error('useDelegateKey: Something went wrong', error)
+        throw Logger.error(ERROR_MSG, error)
+      }
+      // Step 2 - Create a new random delegate private key
+      const delegatePrivateKey = ethers.Wallet.createRandom()
+
+      if (!delegatePrivateKey) {
+        throw Logger.error(ERROR_MSG, error)
       }
 
-      // Step 1: Generate delegate key
-      const delegateMnemonic = ethers.Wallet.createRandom().mnemonic?.phrase
-
-      if (!delegateMnemonic) {
-        throw Logger.error('useDelegateKey: Something went wrong', error)
+      // Step 3 - Create a message following the SIWE standard
+      const siweMessage = {
+        address: ownerAddress,
+        chainId: Number(activeSafe.chainId),
+        domain: 'global.safe.mobileapp',
+        statement: 'Sign in with Ethereum to the app.',
+        nonce: data?.nonce,
+        uri: 'rnsiwe://', //TODO: Update this
+        version: '1',
+        issuedAt: new Date().toISOString(),
       }
 
-      const delegatedAccount = await createMnemonicAccount(delegateMnemonic)
-
-      if (!delegatedAccount) {
-        throw Logger.error('useDelegateKey: Something went wrong', error)
-      }
-
-      // Step 2: Generate message to sign
-      const time = Math.floor(Date.now() / 3600000).toString()
-      const messageToSign = delegatedAccount.address + time
-      const hashToSign = ethers.hashMessage(messageToSign)
-
-      // Step 3: Sign message
-      const signature = await signMessage({
-        signer: delegatedAccount,
-        message: hashToSign,
+      // Step 4 - Triggers the backend to create the delegate
+      await createOnBackEnd({
+        safeAddress: activeSafe.address,
+        signer: ownerAddress,
+        delegatedAccount: delegatePrivateKey,
+        message: siweMessage,
+        chainId: activeSafe.chainId,
       })
-
-      // Step 4: Send to backend
-      await createOnBackEnd(ownerAddress, delegatedAccount, signature)
-
-      // Step 5: Store delegate key in keychain
-      const encryptedDelegateKey = await DeviceCrypto.encrypt(asymmetricKey, delegatedAccount.privateKey, {
-        biometryTitle: 'Authenticate',
-        biometrySubTitle: 'Saving delegated key',
-        biometryDescription: 'Please authenticate yourself',
-      })
-
-      await Keychain.setGenericPassword(
-        keychainGenericPassword,
-        JSON.stringify({
-          encryptedPassword: encryptedDelegateKey.encryptedText,
-          iv: encryptedDelegateKey.iv,
-        }),
-      )
     } catch (err) {
       throw Logger.error('useDelegateKey: Something went wrong', err)
     } finally {
@@ -83,24 +81,55 @@ export function useDelegateKey() {
     setError(null)
   }, [])
 
-  const signMessage = useCallback(async ({ signer, message }: { signer: ethers.HDNodeWallet; message: string }) => {
-    const signature = await signer.signMessage(message)
-    return signature
-  }, [])
+  const createOnBackEnd = async ({
+    safeAddress,
+    signer,
+    delegatedAccount,
+    message,
+    chainId,
+  }: {
+    safeAddress: Address
+    signer: Address
+    delegatedAccount: ethers.HDNodeWallet
+    message: object
+    chainId: string
+  }) => {
+    const [authVerifyV1] = useAuthVerifyV1Mutation()
 
-  const createOnBackEnd = async (ownerAddress: Address, delegatedAccount: ethers.HDNodeWallet, signature: string) => {
-    console.log({ createOnBackEnd: delegatedAccount, signature })
-    // TODO 1: call backend endpoints to create delegate into database
-    // TODO 2: check if we need to loop through all chains and create delegate for each chain
-    // Chain.all.forEach(async (chain) => {
+    // Step 5 - calls /v1/auth/verify to verify the signature
     try {
-      await GatewayService.createDelegate({
-        delegatorAddress: ownerAddress,
-        delegatedAddress: delegatedAccount.address,
-        signature,
-        description: 'iOS Device Delegate',
-        chainId: 'chain.id', //TODO: need to pass chainId
+      const response = await authVerifyV1({
+        siweDto: {
+          message: message.toString(),
+          signature: signer,
+        },
       })
+
+      console.log({ response })
+
+      // Step 6 - calls /v2/delegates
+      const [delegatesPostDelegateV2] = useDelegatesPostDelegateV2Mutation()
+      const { data: delegateData, error: delegateError } = await delegatesPostDelegateV2({
+        chainId,
+        createDelegateDto: {
+          safe: safeAddress,
+          delegate: delegatedAccount.address,
+          delegator: signer,
+          signature: signer,
+          label: 'Delegate',
+        },
+      })
+
+      console.log({ delegateData, delegateError })
+
+      const { data, error, isFetching } = useDelegatesGetDelegatesV2Query({
+        safe: safeAddress,
+        delegate: signer,
+        chainId,
+      })
+
+      console.log({ data, error, isFetching })
+      // Step 7 - calls /v2/register/notifications
     } catch (err) {
       throw Logger.error('CreateDelegateFailed', err)
     }
