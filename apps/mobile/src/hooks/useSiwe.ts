@@ -1,4 +1,4 @@
-import { ethers } from 'ethers'
+import { HDNodeWallet, Wallet } from 'ethers'
 import { useCallback } from 'react'
 import { SiweMessage } from 'siwe'
 
@@ -17,14 +17,14 @@ export function useSiwe() {
       domain: 'global.safe.mobileapp',
       statement,
       nonce,
-      uri: 'rnsiwe://', //TODO: Update this
+      uri: 'https://safe.global',
       version: '1',
       issuedAt: new Date().toISOString(),
     })
     return message.prepareMessage()
   }, [])
 
-  const signMessage = useCallback(async ({ signer, message }: { signer: ethers.HDNodeWallet; message: string }) => {
+  const signMessage = useCallback(async ({ signer, message }: { signer: HDNodeWallet | Wallet; message: string }) => {
     const signature = await signer.signMessage(message)
     return signature
   }, [])
