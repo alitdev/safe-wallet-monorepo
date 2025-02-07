@@ -16,6 +16,12 @@ jest.mock('expo-font', () => ({
   isLoaded: () => true,
 }))
 
+jest.mock('@/src/navigation/useScrollableHeader', () => ({
+  useScrollableHeader: () => ({
+    handleScroll: jest.fn(),
+  }),
+}))
+
 jest.mock('react-native-mmkv', () => ({
   MMKV: function () {
     // @ts-ignore
@@ -58,6 +64,12 @@ jest.mock('react-native-keychain', () => {
       password = null
       Promise.resolve(null)
     }),
+    ACCESS_CONTROL: {
+      BIOMETRY_CURRENT_SET_OR_DEVICE_PASSCODE: 'BIOMETRY_CURRENT_SET_OR_DEVICE_PASSCODE',
+    },
+    ACCESSIBLE: {
+      WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
+    },
   }
 })
 

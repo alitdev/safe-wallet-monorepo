@@ -521,7 +521,7 @@ export type TransactionData = {
 }
 export type Token = {
   address: string
-  decimals?: number
+  decimals?: number | null
   logoUri: string
   name: string
   symbol: string
@@ -729,14 +729,21 @@ export type CreationTransaction = {
 }
 export const {
   useTransactionsGetTransactionByIdV1Query,
+  useLazyTransactionsGetTransactionByIdV1Query,
   useTransactionsGetMultisigTransactionsV1Query,
+  useLazyTransactionsGetMultisigTransactionsV1Query,
   useTransactionsDeleteTransactionV1Mutation,
   useTransactionsGetModuleTransactionsV1Query,
+  useLazyTransactionsGetModuleTransactionsV1Query,
   useTransactionsAddConfirmationV1Mutation,
   useTransactionsGetIncomingTransfersV1Query,
+  useLazyTransactionsGetIncomingTransfersV1Query,
   useTransactionsPreviewTransactionV1Mutation,
   useTransactionsGetTransactionQueueV1Query,
+  useLazyTransactionsGetTransactionQueueV1Query,
   useTransactionsGetTransactionsHistoryV1Query,
+  useLazyTransactionsGetTransactionsHistoryV1Query,
   useTransactionsProposeTransactionV1Mutation,
   useTransactionsGetCreationTransactionV1Query,
+  useLazyTransactionsGetCreationTransactionV1Query,
 } = injectedRtkApi

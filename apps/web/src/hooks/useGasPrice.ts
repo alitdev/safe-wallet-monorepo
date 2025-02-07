@@ -33,8 +33,6 @@ type GasFeeParams = {
 // Update gas fees every 20 seconds
 const REFRESH_DELAY = 20e3
 
-const DEFAULT_FEE = 1n
-
 type EtherscanResult = {
   LastBlock: string
   SafeGasPrice: string
@@ -48,11 +46,6 @@ const isEtherscanResult = (data: any): data is EtherscanResult => {
   return 'FastGasPrice' in data && 'suggestBaseFee' in data
 }
 
-const stringToBigInt = (value: string): bigint => {
-  const bigInt = BigInt(value.split('.')[0])
-  return bigInt <= 0 ? DEFAULT_FEE : bigInt
-}
-
 /**
  * Parses result from etherscan oracle.
  * Since EIP 1559 it returns the `maxFeePerGas` as gas price and the current network baseFee as `suggestedBaseFee`.
@@ -62,8 +55,8 @@ const stringToBigInt = (value: string): bigint => {
  * @see https://docs.etherscan.io/api-endpoints/gas-tracker
  */
 const parseEtherscanOracleResult = (result: EtherscanResult, gweiFactor: string): EstimatedGasPrice => {
-  const maxFeePerGas = stringToBigInt(result.FastGasPrice) * stringToBigInt(gweiFactor)
-  const baseFee = stringToBigInt(result.suggestBaseFee) * stringToBigInt(gweiFactor)
+  const maxFeePerGas = BigInt(Number(result.FastGasPrice) * Number(gweiFactor))
+  const baseFee = BigInt(Number(result.suggestBaseFee) * Number(gweiFactor))
 
   return {
     maxFeePerGas,
@@ -229,8 +222,8 @@ const useGasPrice = (isSpeedUp: boolean = false): AsyncResult<GasFeeParams> => {
       return {
         maxFeePerGas: gasParameters.maxFeePerGas
           ? (gasParameters.maxFeePerGas * SPEED_UP_GAS_PRICE_FACTOR) / 100n
-          : DEFAULT_FEE,
-        maxPriorityFeePerGas: DEFAULT_FEE,
+          : undefined,
+        maxPriorityFeePerGas: undefined,
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
