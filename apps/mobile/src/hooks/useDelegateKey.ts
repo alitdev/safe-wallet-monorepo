@@ -1,101 +1,113 @@
 import { useState, useCallback } from 'react'
-import DeviceInfo from 'react-native-device-info'
-import 'react-native-get-random-values'
-import { HDNodeWallet, Wallet } from 'ethers'
-import { useAuthGetNonceV1Query, useAuthVerifyV1Mutation } from '@safe-global/store/gateway/AUTO_GENERATED/auth'
-import {
-  useNotificationsDeleteSubscriptionV2Mutation,
-  useNotificationsUpsertSubscriptionsV2Mutation,
-} from '@safe-global/store/gateway/AUTO_GENERATED/notifications'
+import { Wallet } from 'ethers'
+
+import { AuthNonce } from '@safe-global/store/gateway/AUTO_GENERATED/auth'
+import { AddressInfo } from '@safe-global/store/gateway/AUTO_GENERATED/safes'
 
 import Logger from '@/src/utils/logger'
 import { Address } from '@/src/types/address'
 import { selectActiveSafe } from '@/src/store/activeSafeSlice'
-import { useAppSelector } from '@/src/store/hooks'
-import { useSiwe } from './useSiwe'
+import { useAppDispatch, useAppSelector } from '@/src/store/hooks'
 import { useSign } from './useSign'
-import { isAndroid } from '../config/constants'
+import { useGTW } from './useGTW'
+
 import { selectFCMToken } from '../store/notificationsSlice'
+// import { selectSigners } from '../store/signersSlice'
+import { addDelegatedAddress } from '../store/delegatedSlice'
+import { useSiwe } from './useSiwe'
+import { getSigner } from '../utils/notifications'
 
 const ERROR_MSG = 'useDelegateKey: Something went wrong'
 
-export function useDelegateKey() {
+export enum DELEGATED_ACCOUNT_TYPE {
+  REGULAR = 'REGULAR',
+  OWNER = 'OWNER',
+}
+
+export function useDelegateKey(safeOwner?: AddressInfo) {
   // Local states
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<unknown>(null)
+  const [delegatedAccountType, setDelegatedAccountType] = useState<DELEGATED_ACCOUNT_TYPE>()
 
-  // Queries
-  const [authVerifyV1] = useAuthVerifyV1Mutation()
-  const [notificationsUpsertSubscriptionsV2] = useNotificationsUpsertSubscriptionsV2Mutation()
-  const [notificationsDeleteSubscriptionsV2] = useNotificationsDeleteSubscriptionV2Mutation()
   // Custom hooks
-  const { signMessage } = useSiwe()
-  const { getPrivateKey } = useSign()
-
-  // Redux states
+  const { getPrivateKey, storePrivateKey } = useSign()
+  const { createDelegatedKeyOnBackEnd, deleteDelegatedKeyOnBackEnd } = useGTW()
+  const { createSiweMessage } = useSiwe()
+  // Redux
+  const dispatch = useAppDispatch()
   const activeSafe = useAppSelector(selectActiveSafe)
+
+  // const appSigners = useAppSelector(selectSigners)
   const fcmToken = useAppSelector(selectFCMToken)
 
+  /**
+   * case 2: Starting w/ PK
+   * [x] - Select active safe (useAppSelector(selectActiveSafe))
+   * [] - fetch signers from Redux slice --> activeSafe filter if its owner are present in one of the signers
+   * [x] - fetch PK from keychain using previous address as userId
+   * [x] - create a new delegate PK (customRandom)
+   * [x] - create a SiWE message, sign and call authVerifyV1 with owner's account
+   * [x] - authorize the delegator PK through /v1/{chains}/{chainId}/delegates call.
+   * [x] - this will enable full access (outgoing/income/queue) notifications
+   * [x] - create a new redux structure for store the delegatedSigner object
+   */
+  // selectSafeInfo filtered by activeSafe owners
+
   // Step 0 - Get the nonce to be included in the message to be sent to the backend
-  const { data } = useAuthGetNonceV1Query()
-
-  const createDelegate = useCallback(
-    async (ownerAddress: Address) => {
-      setLoading(true)
-      setError(null)
-      const nonce = data?.nonce
-      // Step 1 - Try to get the owner's private key
-      const ownerPrivateKey = await getPrivateKey()
-
-      try {
-        if (!ownerAddress || !activeSafe || !nonce || !fcmToken) {
-          throw Logger.info(ERROR_MSG)
-        }
-
-        // Step 2 - Create a new random (delegated) private key in case the owner's private key is not available
-        //TODO: Double check if we have a wallet stored already avoiding to create a new one
-        const signerAccount = ownerPrivateKey ? new Wallet(ownerPrivateKey) : Wallet.createRandom()
-
-        if (!signerAccount) {
-          throw Logger.error(ERROR_MSG, error)
-        }
-
-        // Step 3 - Create a message following the SIWE standard
-        const siweMessage = `SafeWallet wants you to sign in with your Ethereum account:
-${signerAccount.address}
-
-Sign in with Ethereum to the app.
-
-URI: https://safe.global
-Version: 1
-Chain ID: ${activeSafe.chainId}
-Nonce: ${nonce}
-Issued At: ${new Date().toISOString()}`
-
-        // Step 4 - Triggers the backend to create the delegate
-        await createOnBackEnd({
-          safeAddress: activeSafe.address,
-          signer: signerAccount,
-          message: siweMessage,
-          chainId: activeSafe.chainId,
-          fcmToken,
-        })
-      } catch (err) {
-        Logger.error('useDelegateKey: Something went wrong', err)
-        setError(err)
-        return
-      } finally {
-        setLoading(false)
-      }
-    },
-    [data, activeSafe, fcmToken],
-  )
-
-  const deleteDelegate = useCallback(async () => {
+  const createDelegate = useCallback(async (data: AuthNonce | undefined) => {
     setLoading(true)
     setError(null)
+
+    const nonce = data?.nonce
+
+    if (!activeSafe || !fcmToken || !nonce) {
+      throw Logger.info(ERROR_MSG)
+    }
+
     try {
-      await deleteOnBackEnd()
+      // Step 1 - Try to get the safe owner's private key from keychain
+      const safeOwnerPK = safeOwner && (await getPrivateKey(safeOwner.value))
+
+      const delegatedAccType = safeOwnerPK ? DELEGATED_ACCOUNT_TYPE.OWNER : DELEGATED_ACCOUNT_TYPE.REGULAR
+      setDelegatedAccountType(delegatedAccType)
+
+      // Step 2 - Create a new random (delegated) private key
+      const randomDelegatedAccount = Wallet.createRandom()
+
+      if (!randomDelegatedAccount) {
+        throw Logger.error(ERROR_MSG, error)
+      }
+
+      // Step 2.1 - Store the delegated account in the redux store
+      dispatch(
+        addDelegatedAddress({ delegatedAddress: randomDelegatedAccount.address as Address, safes: [activeSafe] }),
+      )
+
+      // Step 2.2 - Store it in the keychain
+      storePrivateKey(randomDelegatedAccount.address, randomDelegatedAccount.privateKey)
+
+      // Step 2.3 - Define the signer account
+      const signerAccount = getSigner(safeOwnerPK, randomDelegatedAccount)
+
+      // Step 3 - Create a message following the SIWE standard
+      const siweMessage = createSiweMessage({
+        address: signerAccount.address,
+        chainId: Number(activeSafe.chainId),
+        nonce,
+        statement: 'SafeWallet wants you to sign in with your Ethereum account',
+      })
+
+      // Step 4 - Triggers the backend to create the delegate
+      await createDelegatedKeyOnBackEnd({
+        safeAddress: activeSafe.address,
+        signer: signerAccount,
+        message: siweMessage,
+        chainId: activeSafe.chainId,
+        fcmToken,
+        delegatedAccount: randomDelegatedAccount,
+        delegatedAccountType: delegatedAccType,
+      })
     } catch (err) {
       Logger.error('useDelegateKey: Something went wrong', err)
       setError(err)
@@ -105,65 +117,17 @@ Issued At: ${new Date().toISOString()}`
     }
   }, [])
 
-  const createOnBackEnd = useCallback(
-    async ({
-      safeAddress,
-      signer,
-      message,
-      chainId,
-      fcmToken,
-    }: {
-      safeAddress: Address
-      signer: HDNodeWallet | Wallet
-      message: string
-      chainId: string
-      fcmToken: string
-    }) => {
-      const signature = await signMessage({ signer, message })
-      try {
-        await authVerifyV1({
-          siweDto: {
-            message,
-            signature,
-          },
-        })
-
-        const deviceUuid = await DeviceInfo.getUniqueId()
-
-        await notificationsUpsertSubscriptionsV2({
-          upsertSubscriptionsDto: {
-            cloudMessagingToken: fcmToken,
-            safes: [
-              {
-                chainId,
-                address: safeAddress,
-                notificationTypes: ['MESSAGE_CONFIRMATION_REQUEST', 'CONFIRMATION_REQUEST'],
-              },
-            ],
-            deviceType: isAndroid ? 'ANDROID' : 'IOS',
-            deviceUuid,
-          },
-        })
-      } catch (err) {
-        Logger.error('CreateDelegateFailed', err)
-        setError(err)
-        return
-      }
-    },
-    [],
-  )
-
-  const deleteOnBackEnd = useCallback(async () => {
+  const deleteDelegate = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
-      await notificationsDeleteSubscriptionsV2({
-        deviceUuid: await DeviceInfo.getUniqueId(),
-        chainId: activeSafe.chainId,
-        safeAddress: activeSafe.address,
-      })
+      await deleteDelegatedKeyOnBackEnd(activeSafe)
     } catch (err) {
-      Logger.error('DeleteDelegateFailed', err)
+      Logger.error('useDelegateKey: Something went wrong', err)
       setError(err)
       return
+    } finally {
+      setLoading(false)
     }
   }, [])
 
@@ -172,5 +136,6 @@ Issued At: ${new Date().toISOString()}`
     error,
     createDelegate,
     deleteDelegate,
+    delegatedAccountType,
   }
 }
