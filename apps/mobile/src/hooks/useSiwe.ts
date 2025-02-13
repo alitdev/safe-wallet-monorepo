@@ -1,6 +1,6 @@
-import { HDNodeWallet, Wallet } from 'ethers'
 import { useCallback } from 'react'
 import { SiweMessage } from 'siwe'
+import { HDNodeWallet, Wallet } from 'ethers'
 
 interface SiweMessageProps {
   address: string
@@ -24,7 +24,7 @@ export function useSiwe() {
     return message.prepareMessage()
   }, [])
 
-  const signMessage = useCallback(async ({ signer, message }: { signer: HDNodeWallet | Wallet; message: string }) => {
+  const signMessage = useCallback(async ({ signer, message }: { signer: Wallet | HDNodeWallet; message: string }) => {
     const signature = await signer.signMessage(message)
     return signature
   }, [])
