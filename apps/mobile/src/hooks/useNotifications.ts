@@ -26,7 +26,6 @@ const useNotifications = (): NotificationsProps => {
   const fcmToken = useAppSelector(selectFCMToken)
   const remoteMessages = useAppSelector(selectRemoteMessages)
   const promptAttempts = useAppSelector(selectPromptAttempts)
-
   const enableNotifications = useCallback(() => {
     const checkNotifications = async () => {
       const isDeviceNotificationEnabled = await NotificationsService.isDeviceNotificationEnabled()
@@ -34,7 +33,6 @@ const useNotifications = (): NotificationsProps => {
         dispatch(updatePromptAttempts(1))
 
         const { permission } = await NotificationsService.getAllPermissions()
-
         if (permission !== 'authorized') {
           return
         }
