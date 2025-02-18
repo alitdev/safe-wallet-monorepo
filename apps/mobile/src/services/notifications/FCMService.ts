@@ -22,9 +22,10 @@ class FCMService {
 
   async saveFCMToken(): Promise<void> {
     try {
-      const fcmToken = await withTimeout(messaging().getToken(), 5000)
+      // Register the app with FCM forcefully to get the token since it has not been reliably saved otherwise
+      await messaging().registerDeviceForRemoteMessages()
+      const fcmToken = await withTimeout(messaging().getToken(), 10000)
       Logger.info('FCMService :: fcmToken', fcmToken)
-
       if (fcmToken) {
         store.dispatch(savePushToken(fcmToken))
       }
@@ -57,16 +58,14 @@ class FCMService {
   }
 
   async registerAppWithFCM(): Promise<void> {
-    if (!messaging().registerDeviceForRemoteMessages) {
-      await messaging()
-        .registerDeviceForRemoteMessages()
-        .then((status: unknown) => {
-          Logger.info('registerDeviceForRemoteMessages status', status)
-        })
-        .catch((error) => {
-          Logger.error('registerAppWithFCM: Something went wrong', error)
-        })
-    }
+    await messaging()
+      .registerDeviceForRemoteMessages()
+      .then((status: unknown) => {
+        Logger.info('registerDeviceForRemoteMessages status', status)
+      })
+      .catch((error) => {
+        Logger.error('registerAppWithFCM: Something went wrong', error)
+      })
   }
 }
 export default new FCMService()

@@ -65,10 +65,18 @@ class NotificationsService {
        * 4 - If permission has not being granted already or blocked notifications are found, open device's settings
        * so that user can enable DEVICE notifications
        **/
-      if ((permission !== 'authorized' || blockedNotifications.size !== 0) && shouldOpenSettings) {
+
+      if (shouldOpenSettings) {
         await this.requestPushNotificationsPermission()
         permission = await withTimeout(this.checkCurrentPermissions(), 5000)
+      } else {
+        store.dispatch(toggleDeviceNotifications(true))
+        store.dispatch(toggleAppNotifications(true))
+        store.dispatch(updatePromptAttempts(0))
+        store.dispatch(updateLastTimePromptAttempted(0))
+        permission = (await notifee.requestPermission()).authorizationStatus as unknown as string
       }
+
       return { permission, blockedNotifications }
     } catch (error) {
       Logger.error('Error occurred while fetching permissions:', error)
@@ -110,8 +118,10 @@ class NotificationsService {
         store.dispatch(updatePromptAttempts(0))
         store.dispatch(updateLastTimePromptAttempted(0))
 
-        await notifee.requestPermission()
-        this.openSystemSettings()
+        const permissions = await notifee.getNotificationSettings()
+        if (permissions.authorizationStatus === AuthorizationStatus.DENIED) {
+          this.openSystemSettings()
+        }
         resolve(true)
       },
     },

@@ -41,26 +41,12 @@ export function useDelegateKey(safeOwner?: AddressInfo) {
   // const appSigners = useAppSelector(selectSigners)
   const fcmToken = useAppSelector(selectFCMToken)
 
-  /**
-   * case 2: Starting w/ PK
-   * [x] - Select active safe (useAppSelector(selectActiveSafe))
-   * [] - fetch signers from Redux slice --> activeSafe filter if its owner are present in one of the signers
-   * [x] - fetch PK from keychain using previous address as userId
-   * [x] - create a new delegate PK (customRandom)
-   * [x] - create a SiWE message, sign and call authVerifyV1 with owner's account
-   * [x] - authorize the delegator PK through /v1/{chains}/{chainId}/delegates call.
-   * [x] - this will enable full access (outgoing/income/queue) notifications
-   * [x] - create a new redux structure for store the delegatedSigner object
-   */
-  // selectSafeInfo filtered by activeSafe owners
-
   // Step 0 - Get the nonce to be included in the message to be sent to the backend
   const createDelegate = useCallback(async (data: AuthNonce | undefined) => {
     setLoading(true)
     setError(null)
 
     const nonce = data?.nonce
-
     if (!activeSafe || !fcmToken || !nonce) {
       throw Logger.info(ERROR_MSG)
     }

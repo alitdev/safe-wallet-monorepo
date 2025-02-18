@@ -5,13 +5,18 @@ import { View, Text } from 'tamagui'
 import { useAppSelector, useAppDispatch } from '@/src/store/hooks'
 import { SafeListItem } from '@/src/components/SafeListItem'
 import { selectAppNotificationStatus, toggleAppNotifications } from '@/src/store/notificationsSlice'
+import { useDelegateKey } from '@/src/hooks/useDelegateKey'
 
 export const NotificationsContainer = () => {
   const dispatch = useAppDispatch()
+  const { deleteDelegate } = useDelegateKey()
   const isAppNotificationEnabled = useAppSelector(selectAppNotificationStatus)
 
-  const handleToggleAppNotifications = useCallback(() => {
+  const handleToggleAppNotifications = useCallback(async () => {
     dispatch(toggleAppNotifications(!isAppNotificationEnabled))
+    if (!isAppNotificationEnabled) {
+      await deleteDelegate()
+    }
   }, [isAppNotificationEnabled])
 
   return (

@@ -29,13 +29,14 @@ const useNotifications = (): NotificationsProps => {
   const enableNotifications = useCallback(() => {
     const checkNotifications = async () => {
       const isDeviceNotificationEnabled = await NotificationsService.isDeviceNotificationEnabled()
+
       if (!isDeviceNotificationEnabled) {
         dispatch(updatePromptAttempts(1))
+      }
 
-        const { permission } = await NotificationsService.getAllPermissions()
-        if (permission !== 'authorized') {
-          return
-        }
+      const { permission } = await NotificationsService.getAllPermissions()
+      if (permission !== 'authorized') {
+        return
       }
 
       try {

@@ -22,6 +22,7 @@ export const Navbar = () => {
   const router = useRouter()
   const activeSafe = useDefinedActiveSafe()
   const isAppNotificationEnabled = useAppSelector(selectAppNotificationStatus)
+
   const handleNotificationAccess = () => {
     if (!isAppNotificationEnabled) {
       router.navigate('/notifications-opt-in')

@@ -1,12 +1,22 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { useColorScheme } from 'react-native'
 import { OptIn } from '@/src/components/OptIn'
 import useNotifications from '@/src/hooks/useNotifications'
 import { router, useFocusEffect } from 'expo-router'
+import { useDelegateKey } from '../hooks/useDelegateKey'
+import { useAuthGetNonceV1Query } from '@safe-global/store/gateway/AUTO_GENERATED/auth'
 
 function NotificationsOptIn() {
   const { enableNotifications, isAppNotificationEnabled } = useNotifications()
+  const { data } = useAuthGetNonceV1Query()
+  const { createDelegate } = useDelegateKey()
+
   const colorScheme = useColorScheme()
+
+  const toggleNotificationsOn = useCallback(async () => {
+    enableNotifications()
+    await createDelegate(data)
+  }, [data])
 
   useFocusEffect(() => {
     if (isAppNotificationEnabled) {
@@ -27,7 +37,7 @@ function NotificationsOptIn() {
       image={image}
       isVisible
       ctaButton={{
-        onPress: enableNotifications,
+        onPress: toggleNotificationsOn,
         label: 'Enable notifications',
       }}
       secondaryButton={{
