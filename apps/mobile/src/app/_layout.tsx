@@ -17,6 +17,8 @@ import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-rean
 import { OnboardingHeader } from '@/src/features/Onboarding/components/OnboardingHeader'
 import { getDefaultScreenOptions } from '@/src/navigation/hooks/utils'
 import { NavigationGuardHOC } from '@/src/navigation/NavigationGuardHOC'
+import { StatusBar } from 'expo-status-bar'
+import { TestCtrls } from '@/src/tests/e2e-maestro/components/TestCtrls'
 
 configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
@@ -36,6 +38,7 @@ function RootLayout() {
                 <SafeThemeProvider>
                   <SafeToastProvider>
                     <NavigationGuardHOC>
+                      <TestCtrls />
                       <Stack
                         screenOptions={({ navigation }) => ({
                           ...getDefaultScreenOptions(navigation.goBack),
@@ -94,6 +97,7 @@ function RootLayout() {
                         />
                         <Stack.Screen name="+not-found" />
                       </Stack>
+                      <StatusBar />
                     </NavigationGuardHOC>
                   </SafeToastProvider>
                 </SafeThemeProvider>

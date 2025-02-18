@@ -16,7 +16,7 @@ export const assetsSwapBtn = '[data-testid="swap-btn"]'
 export const dashboardSwapBtn = '[data-testid="overview-swap-btn"]'
 export const customRecipient = 'div[id="recipient"]'
 const recipientToggle = 'button[id="toggle-recipient-mode-button"]'
-const twapsAddressToggle = '[class*="Toggle__Wrapper"]'
+const twapsAddressToggle = 'button[class*="Toggle__Wrapper"]'
 const orderTypeMenuItem = 'div[class*="MenuItem"]'
 const explorerBtn = '[data-testid="explorer-btn"]'
 const limitPriceFld = '[data-testid="limit-price"]'
@@ -35,6 +35,7 @@ const placeTwapOrderStrBtn = 'Place TWAP order'
 const placeLimitOrderStrBtn = 'Place limit order'
 export const unlockOrdersBtn = '[id="unlock-advanced-orders-btn"]'
 const limitOrderExpiryItem = (item) => `div[data-valuetext="${item}"]`
+const tokenBlock = '[data-testid="block-label"]'
 
 const limitStrBtn = 'Limit'
 const swapStrBtn = 'Swap'
@@ -57,6 +58,8 @@ const priceProtectionStr = 'Price protection'
 const orderSplit = 'Order will be split in'
 const orderDetailsStr = 'Order details'
 const unlockTwapOrdersStrBtn = 'Unlock TWAP orders'
+const settingsModalTitle = 'Advanced Order Settings'
+const customRecipientStr = 'Custom Recipient'
 
 const getInsufficientBalanceStr = (token) => `Insufficient ${token} balance`
 const sellAmountIsSmallStr = 'Sell amount too small'
@@ -128,7 +131,29 @@ export const swapTxs = {
     '&id=multisig_0x8f4A19C85b39032A37f7a6dCc65234f966F72551_0xd3d13db9fc438d0674819f81be62fcd9c74a8ed7c101a8249b8895e55ee80d76',
   safeAppSwapOrder:
     '&id=multisig_0x03042B890b99552b60A073F808100517fb148F60_0x5f08e05edb210a8990791e9df2f287a5311a8137815ec85856a2477a36552f1e',
+  wrapSwap:
+    '&id=multisig_0xF184a243925Bf7fb1D64487339FF4F177Fb75644_0x06d7e5920bb59a38cf46436b146c33e7307d690875f7d64bca32a0b0c3394deb',
+  swapQueue:
+    '&id=multisig_0xD8b85a669413b25a8BE7D7698f88b7bFA20889d2_0xc2a59a93e1cbaeab5fde7a5d4cc63938e1b1e4597c7e203146a6e6e07b43a92f'
 }
+
+export const tokenBlockLabels = {
+  sell: 'Sell',
+  buy: 'Buy exactly',
+
+}
+export function checkInputCurrencyPreviewValue(value) {
+  cy.get(inputCurrencyPreview).should('contain.text', value)
+}
+
+export function checkOutputCurrencyPreviewValue(value) {
+  cy.get(outputCurrencyPreview).should('contain.text', value)
+}
+
+export function checkTokenBlockValue(index, value) {
+  cy.get(tokenBlock).eq(index).should('contain.text', value)
+}
+
 
 export function unlockTwapOrders(iframeSelector) {
   main.getIframeBody(iframeSelector).then(($iframeBody) => {
@@ -199,7 +224,7 @@ export function clickOnConfirmSwapBtn() {
 export function clickOnExceeFeeChkbox() {
   cy.wait(1000)
   cy.get(exceedFeesChkbox)
-    .should(() => {})
+    .should(() => { })
     .then(($button) => {
       if (!$button.length) {
         return
@@ -221,7 +246,7 @@ export function verifyReviewOrderBtnIsVisible() {
 export function clickOnReviewOrderBtn() {
   cy.get('button')
     .contains(swapAnywayStrBtn)
-    .should(() => {})
+    .should(() => { })
     .then(($button) => {
       if (!$button.length) {
         return
@@ -327,10 +352,9 @@ export function enableCustomRecipient(option) {
   if (!option) cy.get(recipientToggle).click()
 }
 
-export function enableTwapCustomRecipient() {
-  if (cy.get(twapsAddressToggle).length > 1) {
-    cy.get(twapsAddressToggle).eq(0).click()
-  }
+export function enableTwapCustomRecipient(option) {
+  main.verifyMinimumElementsCount(twapsAddressToggle, 1)
+  if (!option) cy.get(twapsAddressToggle).eq(0).click()
 }
 
 export function disableCustomRecipient(option) {
@@ -414,7 +438,7 @@ export function verifyRecipientAlertIsDisplayed() {
 export function closeIntroTwapModal() {
   cy.get('button')
     .contains(unlockTwapOrdersStrBtn)
-    .should(() => {})
+    .should(() => { })
     .then(($button) => {
       if (!$button.length) {
         return
