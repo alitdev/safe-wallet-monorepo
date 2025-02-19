@@ -9,13 +9,7 @@ export interface SafesSliceItem {
 
 export type DelegatedSafesSlice = Record<Address, SafesSliceItem>
 
-interface DelegatedSafesState {
-  delegatedSafes: DelegatedSafesSlice
-}
-
-const initialState: DelegatedSafesState = {
-  delegatedSafes: {},
-}
+const initialState: DelegatedSafesSlice = {}
 
 const delegatedSlice = createSlice({
   name: 'delegated',
@@ -23,12 +17,12 @@ const delegatedSlice = createSlice({
   reducers: {
     addDelegatedAddress: (state, action: PayloadAction<{ delegatedAddress: Address; safes: SafeInfo[] }>) => {
       const { delegatedAddress, safes } = action.payload
-      state.delegatedSafes[delegatedAddress] = { safes }
+      state[delegatedAddress] = { safes }
     },
     updateDelegatedAddress: (state, action: PayloadAction<{ delegatedAddress: Address; safes: SafeInfo[] }>) => {
       const { delegatedAddress, safes } = action.payload
 
-      state.delegatedSafes[delegatedAddress] = { ...safes, safes }
+      state[delegatedAddress] = { ...safes, safes }
 
       return state
     },

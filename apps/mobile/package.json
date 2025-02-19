@@ -8,7 +8,7 @@
     }
   },
   "scripts": {
-    "start": "expo start --dev-client",
+    "start": "expo start",
     "start:android": "expo run:android",
     "start:ios": "expo run:ios",
     "storybook:metro": "STORYBOOK_ENABLED='true' expo start",
@@ -91,7 +91,6 @@
     "react-native-device-info": "^14.0.1",
     "react-native-draggable-flatlist": "^4.0.1",
     "react-native-gesture-handler": "~2.20.2",
-    "react-native-get-random-values": "~1.11.0",
     "react-native-keychain": "^9.2.2",
     "react-native-mmkv": "^3.1.0",
     "react-native-pager-view": "^6.5.1",
@@ -138,9 +137,7 @@
     "@types/lodash": "^4.17.13",
     "@types/node": "^22.9.1",
     "@types/react": "~18.3.12",
-    "@types/react-native-get-random-values": "^1",
     "babel-loader": "^8.4.1",
-    "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^9.19.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",

@@ -16,7 +16,6 @@ import { ChannelId, notificationChannels, withTimeout } from '@/src/utils/notifi
 import Logger from '@/src/utils/logger'
 
 import { FirebaseMessagingTypes } from '@react-native-firebase/messaging'
-import { router } from 'expo-router'
 
 interface AlertButton {
   text: string
@@ -50,6 +49,17 @@ class NotificationsService {
     }
   }
 
+  enableNotifications() {
+    try {
+      store.dispatch(toggleDeviceNotifications(true))
+      store.dispatch(toggleAppNotifications(true))
+      store.dispatch(updatePromptAttempts(0))
+      store.dispatch(updateLastTimePromptAttempted(0))
+    } catch (error) {
+      Logger.error('Error checking if a user has push notifications permission', error)
+    }
+  }
+
   async getAllPermissions(shouldOpenSettings = true) {
     try {
       const promises: Promise<string>[] = notificationChannels.map((channel: AndroidChannel) =>
@@ -57,31 +67,31 @@ class NotificationsService {
       )
       // 1 - Creates android's notifications channel
       await Promise.allSettled(promises)
-      // 2 - Verifies granted permission from device
-      let permission = await withTimeout(this.checkCurrentPermissions(), 5000)
-      // 3 - Verifies blocked notifications
+
+      // 2 - Verifies blocked notifications
       const blockedNotifications = await withTimeout(this.getBlockedNotifications(), 5000)
+
       /**
-       * 4 - If permission has not being granted already or blocked notifications are found, open device's settings
+       * 3 - If permission has not being granted already or blocked notifications are found, open device's settings
        * so that user can enable DEVICE notifications
        **/
-
       if (shouldOpenSettings) {
-        await this.requestPushNotificationsPermission()
-        permission = await withTimeout(this.checkCurrentPermissions(), 5000)
-      } else {
-        store.dispatch(toggleDeviceNotifications(true))
-        store.dispatch(toggleAppNotifications(true))
-        store.dispatch(updatePromptAttempts(0))
-        store.dispatch(updateLastTimePromptAttempted(0))
-        permission = (await notifee.requestPermission()).authorizationStatus as unknown as string
+        this.openDeviceSettings()
       }
 
-      return { permission, blockedNotifications }
-    } catch (error) {
-      Logger.error('Error occurred while fetching permissions:', error)
+      // 4 - Check if the user has enabled device notifications
+      const permission = await withTimeout(this.checkCurrentPermissions(), 5000)
 
-      return { permission: 'denied', blockedNotifications: new Set() }
+      return {
+        permission,
+        blockedNotifications,
+      }
+    } catch (error) {
+      Logger.error('Error checking if a user has push notifications permission', error)
+      return {
+        permission: 'denied',
+        blockedNotifications: new Map<ChannelId, boolean>(),
+      }
     }
   }
 
@@ -95,6 +105,18 @@ class NotificationsService {
     return isAuthorized
   }
 
+  async openDeviceSettings() {
+    try {
+      if (Platform.OS === 'ios') {
+        Linking.openSettings()
+      } else {
+        notifee.openNotificationSettings()
+      }
+    } catch (error) {
+      Logger.error('Error checking if a user has push notifications permission', error)
+    }
+  }
+
   defaultButtons = (resolve: (value: boolean) => void): AlertButton[] => [
     {
       text: 'Maybe later',
@@ -105,23 +127,13 @@ class NotificationsService {
          */
         store.dispatch(updatePromptAttempts(1))
         store.dispatch(updateLastTimePromptAttempted(Date.now()))
-        router.navigate('/(tabs)')
-
         resolve(false)
       },
     },
     {
       text: 'Turn on',
       onPress: async () => {
-        store.dispatch(toggleDeviceNotifications(true))
-        store.dispatch(toggleAppNotifications(true))
-        store.dispatch(updatePromptAttempts(0))
-        store.dispatch(updateLastTimePromptAttempted(0))
-
-        const permissions = await notifee.getNotificationSettings()
-        if (permissions.authorizationStatus === AuthorizationStatus.DENIED) {
-          this.openSystemSettings()
-        }
+        await this.openDeviceSettings()
         resolve(true)
       },
     },
@@ -146,14 +158,6 @@ class NotificationsService {
       )
     } catch (error) {
       Logger.error('Error checking if a user has push notifications permission', error)
-    }
-  }
-
-  openSystemSettings() {
-    if (Platform.OS === 'ios') {
-      Linking.openSettings()
-    } else {
-      notifee.openNotificationSettings()
     }
   }
 

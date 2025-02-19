@@ -1,28 +1,58 @@
-import React, { useCallback } from 'react'
-import { useColorScheme } from 'react-native'
+import React, { useCallback, useEffect, useRef } from 'react'
+import { useColorScheme, AppState } from 'react-native'
 import { OptIn } from '@/src/components/OptIn'
 import useNotifications from '@/src/hooks/useNotifications'
-import { router, useFocusEffect } from 'expo-router'
+import NotificationsService from '@/src/services/notifications/NotificationService'
+import { router } from 'expo-router'
 import { useDelegateKey } from '../hooks/useDelegateKey'
 import { useAuthGetNonceV1Query } from '@safe-global/store/gateway/AUTO_GENERATED/auth'
+import Logger from '@/src/utils/logger'
 
 function NotificationsOptIn() {
   const { enableNotifications, isAppNotificationEnabled } = useNotifications()
+  const appState = useRef(AppState.currentState)
   const { data } = useAuthGetNonceV1Query()
   const { createDelegate } = useDelegateKey()
 
   const colorScheme = useColorScheme()
 
   const toggleNotificationsOn = useCallback(async () => {
-    enableNotifications()
-    await createDelegate(data)
+    try {
+      const deviceNotificationStatus = await NotificationsService.isDeviceNotificationEnabled()
+      if (deviceNotificationStatus) {
+        enableNotifications()
+        await createDelegate(data)
+      } else {
+        await NotificationsService.getAllPermissions(true)
+      }
+    } catch (error) {
+      Logger.error('Error enabling push notifications', error)
+    }
   }, [data])
 
-  useFocusEffect(() => {
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        const deviceNotificationStatus = await NotificationsService.isDeviceNotificationEnabled()
+        if (deviceNotificationStatus && !isAppNotificationEnabled) {
+          enableNotifications()
+          await createDelegate(data)
+        }
+      }
+
+      appState.current = nextAppState
+    })
+
+    return () => {
+      subscription.remove()
+    }
+  }, [])
+
+  useEffect(() => {
     if (isAppNotificationEnabled) {
       router.replace('/(tabs)')
     }
-  })
+  }, [isAppNotificationEnabled])
 
   const image =
     colorScheme === 'dark'

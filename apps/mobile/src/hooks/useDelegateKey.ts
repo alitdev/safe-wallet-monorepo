@@ -12,17 +12,10 @@ import { useSign } from './useSign'
 import { useGTW } from './useGTW'
 
 import { selectFCMToken } from '../store/notificationsSlice'
-// import { selectSigners } from '../store/signersSlice'
 import { addDelegatedAddress } from '../store/delegatedSlice'
 import { useSiwe } from './useSiwe'
 import { getSigner } from '../utils/notifications'
-
-const ERROR_MSG = 'useDelegateKey: Something went wrong'
-
-export enum DELEGATED_ACCOUNT_TYPE {
-  REGULAR = 'REGULAR',
-  OWNER = 'OWNER',
-}
+import { DELEGATED_ACCOUNT_TYPE, ERROR_MSG } from '../store/constants'
 
 export function useDelegateKey(safeOwner?: AddressInfo) {
   // Local states

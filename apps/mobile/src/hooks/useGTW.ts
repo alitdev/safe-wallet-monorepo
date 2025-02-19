@@ -10,12 +10,20 @@ import {
 } from '@safe-global/store/gateway/AUTO_GENERATED/notifications'
 
 import { isAndroid } from '../config/constants'
-import { DELEGATED_ACCOUNT_TYPE } from './useDelegateKey'
 import { Address, SafeInfo } from '../types/address'
 import { useSiwe } from './useSiwe'
 import Logger from '@/src/utils/logger'
 import { HDNodeWallet, Wallet } from 'ethers'
+import { DELEGATED_ACCOUNT_TYPE } from '../store/constants'
 
+const REGULAR_NOTIFICATIONS = ['MESSAGE_CONFIRMATION_REQUEST', 'CONFIRMATION_REQUEST']
+const OWNER_NOTIFICATIONS = [
+  ...REGULAR_NOTIFICATIONS,
+  'INCOMING_ETHER',
+  'INCOMING_TOKEN',
+  'MODULE_TRANSACTION',
+  'EXECUTED_MULTISIG_TRANSACTION',
+]
 export function useGTW() {
   // Queries
   const [authVerifyV1] = useAuthVerifyV1Mutation()
@@ -23,15 +31,6 @@ export function useGTW() {
   const [notificationsDeleteSubscriptionsV2] = useNotificationsDeleteSubscriptionV2Mutation()
   const [delegatesPostDelegateV2] = useDelegatesPostDelegateV2Mutation()
   const { signMessage } = useSiwe()
-
-  const REGULAR_NOTIFICATIONS = ['MESSAGE_CONFIRMATION_REQUEST', 'CONFIRMATION_REQUEST']
-  const OWNER_NOTIFICATIONS = [
-    ...REGULAR_NOTIFICATIONS,
-    'INCOMING_ETHER',
-    'INCOMING_TOKEN',
-    'MODULE_TRANSACTION',
-    'EXECUTED_MULTISIG_TRANSACTION',
-  ]
 
   const createDelegatedKeyOnBackEnd = useCallback(
     async ({
