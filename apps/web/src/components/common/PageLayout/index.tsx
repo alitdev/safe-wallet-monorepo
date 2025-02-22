@@ -9,6 +9,8 @@ import SideDrawer from './SideDrawer'
 import { useIsSidebarRoute } from '@/hooks/useIsSidebarRoute'
 import { TxModalContext } from '@/components/tx-flow'
 import BatchSidebar from '@/components/batch/BatchSidebar'
+import { Alert, AlertTitle, Typography } from '@mui/material'
+import { DisableWrapper } from '@/components/wrappers/DisableWrapper'
 
 const PageLayout = ({ pathname, children }: { pathname: string; children: ReactElement }): ReactElement => {
   const [isSidebarRoute, isAnimated] = useIsSidebarRoute(pathname)
@@ -35,6 +37,20 @@ const PageLayout = ({ pathname, children }: { pathname: string; children: ReactE
         })}
       >
         <div className={css.content}>
+          <DisableWrapper
+            message={
+              <Alert severity="info" style={{ margin: 20 }}>
+                <AlertTitle>
+                  <Typography>Warning!</Typography>
+                </AlertTitle>
+                Safe{'{'}Wallet{'}'} is working on a phased system restoration. Users now have access to Safe Accounts
+                in read-only. You can use the Safe CLI to transact with your Safe Account onchain.
+              </Alert>
+            }
+          >
+            {null}
+          </DisableWrapper>
+
           <SafeLoadingError>{children}</SafeLoadingError>
         </div>
 
